@@ -44,16 +44,26 @@ def detector():
 
     if request.method=="POST":
 
+        if "image" not in request.files:
+            return "No image uploaded"
+
         file=request.files["image"]
+
+        if file.filename=="":
+            return "No selected file"
 
         path="static/uploads/test.jpg"
         file.save(path)
 
-        img=Image.open(path).resize((224,224))
+        # FIX: convert image to RGB
+        img=Image.open(path).convert("RGB")
+        img=img.resize((224,224))
+
         img=np.array(img)/255.0
         img=np.expand_dims(img,axis=0)
 
         m = load_model()
+
         pred=m.predict(img)
 
         class_index=np.argmax(pred)
