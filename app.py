@@ -9,8 +9,11 @@ app = Flask(__name__)
 # create uploads folder if not exists
 os.makedirs("static/uploads", exist_ok=True)
 
-# load model
-model = tf.keras.models.load_model("surface_defect_high_accuracy.h5")
+# load model (FIX FOR RENDER)
+model = tf.keras.models.load_model(
+    "surface_defect_high_accuracy.h5",
+    compile=False
+)
 
 classes = [
 "crazing",
@@ -21,11 +24,9 @@ classes = [
 "scratches"
 ]
 
-
 @app.route("/")
 def home():
     return render_template("index.html")
-
 
 @app.route("/detector", methods=["GET","POST"])
 def detector():
@@ -62,8 +63,6 @@ def detector():
         image_path=image_path
     )
 
-
-# Added for Render deployment
-if __name__=="__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
