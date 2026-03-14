@@ -1,64 +1,61 @@
-from flask import Flask, render_template, request
-import tensorflow as tf
-import numpy as np
-from PIL import Image
 import os
+import numpy as np
+import tensorflow as tf
+from flask import Flask, render_template, request
+from PIL import Image
 
 app = Flask(__name__)
+
+# Load model
+model = tf.keras.models.load_model("surface_defect_high_accuracy.h5", compile=False)
+
+# Class labels
+class_names = [
+    "Crazing",
+    "Inclusion",
+    "Patches",
+    "Pitted Surface",
+    "Rolled-in Scale",
+    "Scratches"
+]
 
 UPLOAD_FOLDER = "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-model = tf.keras.models.load_model("surface_defect_fixed.h5", compile=False)
-classes = [
-    "crazing",
-    "inclusion",
-    "patches",
-    "pitted_surface",
-    "rolled_in_scale",
-    "scratches"
-]
+def preprocess_image(img_path):
+    img = Image.open(img_path).convert("RGB")
+    img = img.resize((224, 224))
+    img = np.array(img) / 255.0
+    img = np.expand_dims(img, axis=0)
+    return img
 
-@app.route("/")
-def home():
+@app.route("/", methods=["GET"])
+def index():
     return render_template("index.html")
 
-@app.route("/detector", methods=["GET","POST"])
-def detector():
+@app.route("/predict", methods=["POST"])
+def predict():
+    if "file" not in request.files:
+        return "No file uploaded"
 
-    prediction=None
-    confidence=None
-    image_path=None
+    file = request.files["file"]
 
-    if request.method=="POST":
+    if file.filename == "":
+        return "No file selected"
 
-        file=request.files["image"]
+    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+    file.save(filepath)
 
-        path=os.path.join(UPLOAD_FOLDER,"test.jpg")
-        file.save(path)
+    img = preprocess_image(filepath)
 
-        img=Image.open(path).convert("RGB")
-        img=img.resize((224,224))
-
-        img=np.array(img)/255.0
-        img=np.expand_dims(img,axis=0)
-
-        pred=model.predict(img)
-
-        class_index=np.argmax(pred)
-
-        prediction=classes[class_index]
-        confidence=round(float(np.max(pred))*100,2)
-
-        image_path=path
+    prediction = model.predict(img)
+    predicted_class = class_names[np.argmax(prediction)]
 
     return render_template(
-        "detector.html",
-        prediction=prediction,
-        confidence=confidence,
-        image_path=image_path
+        "index.html",
+        prediction=predicted_class,
+        img_path=filepath
     )
 
-if __name__=="__main__":
-    port=int(os.environ.get("PORT",5000))
-    app.run(host="0.0.0.0",port=port)
+if __name__ == "__main__":
+    app.run(debug=True)
