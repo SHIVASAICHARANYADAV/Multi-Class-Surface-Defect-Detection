@@ -6,14 +6,15 @@ import os
 
 app = Flask(__name__)
 
-# Ensure upload folder exists
+# Create uploads folder if not exists
 UPLOAD_FOLDER = "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Load model once
+# Load model (fixed for Keras compatibility)
 model = tf.keras.models.load_model(
     "surface_defect_high_accuracy.h5",
-    compile=False
+    compile=False,
+    safe_mode=False
 )
 
 classes = [
@@ -40,6 +41,7 @@ def detector():
     error = None
 
     if request.method == "POST":
+
         try:
             if "image" not in request.files:
                 error = "No image uploaded"
@@ -58,7 +60,7 @@ def detector():
             img = Image.open(path).convert("RGB")
             img = img.resize((224, 224))
 
-            img = np.array(img).astype("float32") / 255.0
+            img = np.array(img) / 255.0
             img = np.expand_dims(img, axis=0)
 
             # Prediction
