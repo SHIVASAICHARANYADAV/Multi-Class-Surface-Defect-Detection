@@ -9,8 +9,7 @@ app = Flask(__name__)
 UPLOAD_FOLDER = "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-model = tf.keras.models.load_model("surface_defect_render.keras", compile=False)
-
+model = tf.keras.models.load_model("surface_defect_fixed.h5", compile=False)
 classes = [
     "crazing",
     "inclusion",
