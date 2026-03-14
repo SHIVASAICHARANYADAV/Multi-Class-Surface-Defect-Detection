@@ -6,17 +6,14 @@ import os
 
 app = Flask(__name__)
 
-# Create uploads folder if not exists
+# Create upload folder if it does not exist
 UPLOAD_FOLDER = "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Load model (fixed for Keras compatibility)
-model = tf.keras.models.load_model(
-    "surface_defect_high_accuracy.h5",
-    compile=False,
-    safe_mode=False
-)
+# Load the fixed model
+model = tf.keras.models.load_model("surface_defect_fixed.h5", compile=False)
 
+# Class names
 classes = [
     "crazing",
     "inclusion",
@@ -25,7 +22,6 @@ classes = [
     "rolled_in_scale",
     "scratches"
 ]
-
 
 @app.route("/")
 def home():
@@ -38,49 +34,37 @@ def detector():
     prediction = None
     confidence = None
     image_path = None
-    error = None
 
     if request.method == "POST":
 
-        try:
-            if "image" not in request.files:
-                error = "No image uploaded"
-                return render_template("detector.html", error=error)
+        file = request.files["image"]
 
-            file = request.files["image"]
+        # Save uploaded image
+        path = os.path.join(UPLOAD_FOLDER, "test.jpg")
+        file.save(path)
 
-            if file.filename == "":
-                error = "No file selected"
-                return render_template("detector.html", error=error)
+        # Preprocess image
+        img = Image.open(path).convert("RGB")
+        img = img.resize((224, 224))
 
-            path = os.path.join(UPLOAD_FOLDER, "test.jpg")
-            file.save(path)
+        img = np.array(img) / 255.0
+        img = np.expand_dims(img, axis=0)
 
-            # Image preprocessing
-            img = Image.open(path).convert("RGB")
-            img = img.resize((224, 224))
+        # Predict
+        pred = model.predict(img)
 
-            img = np.array(img) / 255.0
-            img = np.expand_dims(img, axis=0)
+        class_index = np.argmax(pred)
 
-            # Prediction
-            pred = model.predict(img)
+        prediction = classes[class_index]
+        confidence = round(float(np.max(pred)) * 100, 2)
 
-            class_index = int(np.argmax(pred))
-            prediction = classes[class_index]
-            confidence = round(float(np.max(pred)) * 100, 2)
-
-            image_path = path
-
-        except Exception as e:
-            error = str(e)
+        image_path = path
 
     return render_template(
         "detector.html",
         prediction=prediction,
         confidence=confidence,
-        image_path=image_path,
-        error=error
+        image_path=image_path
     )
 
 
