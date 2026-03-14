@@ -6,28 +6,24 @@ import os
 
 app = Flask(__name__)
 
-# create uploads folder
-os.makedirs("static/uploads", exist_ok=True)
+# Ensure upload folder exists
+UPLOAD_FOLDER = "static/uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-model = None
+# Load model once
+model = tf.keras.models.load_model(
+    "surface_defect_high_accuracy.h5",
+    compile=False
+)
 
 classes = [
-"crazing",
-"inclusion",
-"patches",
-"pitted_surface",
-"rolled_in_scale",
-"scratches"
+    "crazing",
+    "inclusion",
+    "patches",
+    "pitted_surface",
+    "rolled_in_scale",
+    "scratches"
 ]
-
-def load_model():
-    global model
-    if model is None:
-        model = tf.keras.models.load_model(
-            "surface_defect_high_accuracy.h5",
-            compile=False
-        )
-    return model
 
 
 @app.route("/")
@@ -35,50 +31,54 @@ def home():
     return render_template("index.html")
 
 
-@app.route("/detector", methods=["GET","POST"])
+@app.route("/detector", methods=["GET", "POST"])
 def detector():
 
-    prediction=None
-    confidence=None
-    image_path=None
+    prediction = None
+    confidence = None
+    image_path = None
+    error = None
 
-    if request.method=="POST":
+    if request.method == "POST":
+        try:
+            if "image" not in request.files:
+                error = "No image uploaded"
+                return render_template("detector.html", error=error)
 
-        if "image" not in request.files:
-            return "No image uploaded"
+            file = request.files["image"]
 
-        file=request.files["image"]
+            if file.filename == "":
+                error = "No file selected"
+                return render_template("detector.html", error=error)
 
-        if file.filename=="":
-            return "No selected file"
+            path = os.path.join(UPLOAD_FOLDER, "test.jpg")
+            file.save(path)
 
-        path="static/uploads/test.jpg"
-        file.save(path)
+            # Image preprocessing
+            img = Image.open(path).convert("RGB")
+            img = img.resize((224, 224))
 
-        # FIX: convert image to RGB
-        img=Image.open(path).convert("RGB")
-        img=img.resize((224,224))
+            img = np.array(img).astype("float32") / 255.0
+            img = np.expand_dims(img, axis=0)
 
-        img=np.array(img)/255.0
-        img=np.expand_dims(img,axis=0)
+            # Prediction
+            pred = model.predict(img)
 
-        m = load_model()
+            class_index = int(np.argmax(pred))
+            prediction = classes[class_index]
+            confidence = round(float(np.max(pred)) * 100, 2)
 
-        pred=m.predict(img)
+            image_path = path
 
-        class_index=np.argmax(pred)
-
-        prediction=classes[class_index]
-
-        confidence=round(float(np.max(pred))*100,2)
-
-        image_path=path
+        except Exception as e:
+            error = str(e)
 
     return render_template(
         "detector.html",
         prediction=prediction,
         confidence=confidence,
-        image_path=image_path
+        image_path=image_path,
+        error=error
     )
 
 
