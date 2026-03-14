@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Defect Detector</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+background:#f4f7fb;
+}
+
+nav{
+background:#1e3c72;
+color:white;
+padding:15px 60px;
+display:flex;
+justify-content:space-between;
+}
+
+nav a{
+color:white;
+text-decoration:none;
+margin-left:20px;
+}
+
+.container{
+text-align:center;
+padding:80px;
+}
+
+.box{
+background:white;
+padding:40px;
+width:400px;
+margin:auto;
+border-radius:10px;
+box-shadow:0 10px 20px rgba(0,0,0,0.1);
+}
+
+button{
+background:#1e3c72;
+color:white;
+padding:10px 25px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+}
+
+.result{
+margin-top:20px;
+background:#e8f0ff;
+padding:20px;
+border-radius:10px;
+}
+
+#preview{
+width:200px;
+margin-top:20px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<nav>
+
+<h2>Multi-Class Surface Defect Detection</h2>
+
+<div>
+
+<a href="/">Home</a>
+<a href="/detector">Detector</a>
+
+</div>
+
+</nav>
+
+
+<div class="container">
+
+<h1>Upload Image for Detection</h1>
+
+<br>
+
+<div class="box">
+
+<form method="POST" enctype="multipart/form-data">
+
+<input type="file" name="image" id="fileInput" onchange="previewImage()" required>
+
+<br><br>
+
+<img id="preview">
+
+<br><br>
+
+<button type="submit">Detect</button>
+
+</form>
+
+{% if prediction %}
+
+<div class="result">
+
+<h3>Prediction: {{prediction}}</h3>
+
+<h4>Confidence: {{confidence}} %</h4>
+
+<img src="{{image_path}}" width="250">
+
+</div>
+
+{% endif %}
+
+</div>
+
+</div>
+
+
+<script>
+
+function previewImage(){
+
+const file=document.getElementById("fileInput").files[0]
+
+const reader=new FileReader()
+
+reader.onload=function(){
+
+document.getElementById("preview").src=reader.result
+
+}
+
+reader.readAsDataURL(file)
+
+}
+
+</script>
+
+</body>
+
+</html>
