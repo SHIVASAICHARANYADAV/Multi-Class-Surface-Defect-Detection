@@ -90,18 +90,12 @@ margin-top:20px;
 
 <div class="box">
 
-<form method="POST" enctype="multipart/form-data">
-
-<input type="file" name="image" id="fileInput" onchange="previewImage()" required>
-
-<br><br>
-
-<img id="preview">
-
-<br><br>
-
-<button type="submit">Detect</button>
-
+<form action="/predict" method="POST" enctype="multipart/form-data">
+    <input type="file" name="image" id="fileInput" onchange="previewImage()" required>
+    <br><br>
+    <img id="preview">
+    <br><br>
+    <button type="submit">Detect</button>
 </form>
 
 {% if prediction %}
