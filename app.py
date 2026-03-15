@@ -6,20 +6,25 @@ from PIL import Image
 
 app = Flask(__name__)
 
-# --- OPTIMIZATION ---
+# --- CONFIGURATION ---
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1' 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 MODEL_PATH = "surface_defect_high_accuracy.h5"
 model = None
 
+# Function to load model only when needed to save initial boot memory
 def get_model():
     global model
     if model is None:
+        # Loading with compile=False avoids version-specific optimizer errors
         model = tf.keras.models.load_model(MODEL_PATH, compile=False)
     return model
 
-class_names = ["Crazing", "Inclusion", "Patches", "Pitted Surface", "Rolled-in Scale", "Scratches"]
+class_names = [
+    "Crazing", "Inclusion", "Patches", 
+    "Pitted Surface", "Rolled-in Scale", "Scratches"
+]
 
 UPLOAD_FOLDER = "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -36,15 +41,13 @@ def preprocess_image(img_path):
 def index():
     return render_template("index.html")
 
-# FIXED: Added the missing route for the detector page
 @app.route("/detector", methods=["GET"])
 def detector_page():
     return render_template("detector.html")
 
-# FIXED: Unified the route and file keys
 @app.route("/predict", methods=["POST"])
 def predict():
-    # Changed "file" to "image" to match your HTML
+    # Matches the 'name="image"' attribute in your HTML
     if "image" not in request.files:
         return "No file uploaded", 400
 
@@ -57,14 +60,14 @@ def predict():
 
     try:
         img = preprocess_image(filepath)
-        predictions = get_model().predict(img, batch_size=1)
         
-        # Calculate results
+        # Run Prediction
+        predictions = get_model().predict(img, batch_size=1)
         idx = np.argmax(predictions)
         predicted_class = class_names[idx]
         confidence = round(float(np.max(predictions)) * 100, 2)
 
-        # We stay on detector.html to show results
+        # Return the result back to the detector page
         return render_template(
             "detector.html",
             prediction=predicted_class,
@@ -75,5 +78,6 @@ def predict():
         return f"Error during prediction: {str(e)}", 500
 
 if __name__ == "__main__":
+    # Correct port binding for Render
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
