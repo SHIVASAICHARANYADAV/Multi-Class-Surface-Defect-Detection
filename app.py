@@ -1,6 +1,6 @@
 import os
 import numpy as np
-import tflite_runtime.interpreter as tflite
+import tensorflow as tf
 from flask import Flask, render_template, request
 from PIL import Image
 
@@ -15,10 +15,9 @@ output_details = None
 def get_model():
     global interpreter, input_details, output_details
     if interpreter is None:
-        # Load the TFLite model and allocate tensors
-        interpreter = tflite.Interpreter(model_path=MODEL_PATH)
+        # Load the TFLite model using the standard TF library
+        interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
         interpreter.allocate_tensors()
-        # Get input and output details
         input_details = interpreter.get_input_details()
         output_details = interpreter.get_output_details()
     return interpreter
@@ -32,7 +31,6 @@ def preprocess_image(img_path):
     with Image.open(img_path) as img:
         img = img.convert("RGB")
         img = img.resize((224, 224))
-        # TFLite expects float32
         img_array = np.array(img).astype('float32') / 255.0
         img_array = np.expand_dims(img_array, axis=0)
     return img_array
@@ -49,7 +47,6 @@ def detector_page():
 def predict():
     if "image" not in request.files:
         return "No file uploaded", 400
-
     file = request.files["image"]
     if file.filename == "":
         return "No file selected", 400
@@ -58,20 +55,14 @@ def predict():
     file.save(filepath)
 
     try:
-        # 1. Preprocess
         img = preprocess_image(filepath)
-        
-        # 2. Setup Interpreter
         interp = get_model()
         
-        # 3. Set the input tensor
+        # Run TFLite Inference
         interp.set_tensor(input_details[0]['index'], img)
-        
-        # 4. Run inference
         interp.invoke()
-        
-        # 5. Get the result
         predictions = interp.get_tensor(output_details[0]['index'])
+        
         idx = np.argmax(predictions[0])
         predicted_class = class_names[idx]
         confidence = round(float(np.max(predictions[0])) * 100, 2)
