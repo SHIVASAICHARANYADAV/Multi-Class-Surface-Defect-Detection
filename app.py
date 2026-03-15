@@ -6,11 +6,10 @@ from PIL import Image
 
 app = Flask(__name__)
 
-# --- OPTIMIZATION: Disable GPU & Reduce Logging ---
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Force CPU only to save memory
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TF warnings
+# --- OPTIMIZATION ---
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1' 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-# Load model - Load it globally but ensure it's compiled for inference
 MODEL_PATH = "surface_defect_high_accuracy.h5"
 model = None
 
@@ -20,17 +19,12 @@ def get_model():
         model = tf.keras.models.load_model(MODEL_PATH, compile=False)
     return model
 
-# Class labels
-class_names = [
-    "Crazing", "Inclusion", "Patches", 
-    "Pitted Surface", "Rolled-in Scale", "Scratches"
-]
+class_names = ["Crazing", "Inclusion", "Patches", "Pitted Surface", "Rolled-in Scale", "Scratches"]
 
 UPLOAD_FOLDER = "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def preprocess_image(img_path):
-    # Using 'with' ensures the file is closed properly to save RAM
     with Image.open(img_path) as img:
         img = img.convert("RGB")
         img = img.resize((224, 224))
@@ -42,12 +36,19 @@ def preprocess_image(img_path):
 def index():
     return render_template("index.html")
 
+# FIXED: Added the missing route for the detector page
+@app.route("/detector", methods=["GET"])
+def detector_page():
+    return render_template("detector.html")
+
+# FIXED: Unified the route and file keys
 @app.route("/predict", methods=["POST"])
 def predict():
-    if "file" not in request.files:
+    # Changed "file" to "image" to match your HTML
+    if "image" not in request.files:
         return "No file uploaded", 400
 
-    file = request.files["file"]
+    file = request.files["image"]
     if file.filename == "":
         return "No file selected", 400
 
@@ -56,21 +57,23 @@ def predict():
 
     try:
         img = preprocess_image(filepath)
-        
-        # Inference
         predictions = get_model().predict(img, batch_size=1)
-        predicted_class = class_names[np.argmax(predictions)]
+        
+        # Calculate results
+        idx = np.argmax(predictions)
+        predicted_class = class_names[idx]
+        confidence = round(float(np.max(predictions)) * 100, 2)
 
+        # We stay on detector.html to show results
         return render_template(
-            "index.html",
+            "detector.html",
             prediction=predicted_class,
-            img_path=filepath
+            confidence=confidence,
+            image_path=filepath
         )
     except Exception as e:
         return f"Error during prediction: {str(e)}", 500
 
 if __name__ == "__main__":
-    # Render uses the PORT environment variable. 
-    # If not present (local testing), it defaults to 5000.
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
